@@ -1,0 +1,3 @@
+= heatmap_tiler_durden
+
+Build heatmap tiles from csv file containing location events.
