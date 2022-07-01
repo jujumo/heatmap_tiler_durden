@@ -21,7 +21,7 @@ class Tile:
 
     @staticmethod
     def tile_filepath(root_dirpath: str, tile_coord: Tuple[int, int], level: int, file_ext: str) -> str:
-        filepath = path.join(root_dirpath, f'{level:02}', f'{tile_coord[0]:05}x{tile_coord[1]:05}.{file_ext}')
+        filepath = path.join(root_dirpath, f'{level:02}', f'{tile_coord[1]:05}x{tile_coord[0]:05}.{file_ext}')
         filepath = path.abspath(filepath)
         return filepath
 
