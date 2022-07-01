@@ -72,7 +72,7 @@ class TilePyramidLayer:
         tile = Tile.load_from_disk(filepath=filepath) or Tile.creates(filepath=filepath, dtype=self._dtype)
         if tile is None:
             return None
-    
+
         self._tiles_in_cache[tile_coord] = tile
         return tile
 
@@ -100,19 +100,18 @@ class TilePyramid:
     def dump_to_images(self, image_rootpath: str):
         self.flush_to_disk()
         for level in self._pyramid_layers:
-            # todo: use meshgrid
-            for tile_y in range(nb_tiles(level)):
-                for tile_x in range(nb_tiles(level)):
-                    tile_coord = tile_x, tile_y
-                    tile_filepath = Tile.tile_filepath(
-                        root_dirpath=self._root_dirpath, tile_coord=tile_coord, level=level, file_ext='npy')
-                    image_filepath = Tile.tile_filepath(
-                        root_dirpath=image_rootpath, tile_coord=tile_coord, level=level, file_ext='png')
+            xx, yy = np.meshgrid(np.arange(nb_tiles(level)), np.arange(nb_tiles(level)))
+            tile_coords = np.column_stack([xx.flatten(), yy.flatten()])
+            for tile_coord in tqdm(tile_coords):
+                tile_filepath = Tile.tile_filepath(
+                    root_dirpath=self._root_dirpath, tile_coord=tile_coord, level=level, file_ext='npy')
+                image_filepath = Tile.tile_filepath(
+                    root_dirpath=image_rootpath, tile_coord=tile_coord, level=level, file_ext='png')
 
-                    tile = Tile.load_from_disk(filepath=tile_filepath)
-                    if tile is None:
-                        continue
-                    tile.dump_to_image(image_filepath)
+                tile = Tile.load_from_disk(filepath=tile_filepath)
+                if tile is None:
+                    continue
+                tile.dump_to_image(image_filepath)
 
     def increments(self, coords_ll: np.ndarray):
         # load / create in memory

@@ -53,7 +53,9 @@ def main():
             max_level=args.levels,
             dtype=np.uint8)
 
+        logger.info(f'adding tracks to heatmaps.')
         data_pyramid.increments(coords_ll)
+        logger.info(f'exporting to images.')
         data_pyramid.dump_to_images(image_rootpath=path.join(args.output, 'image'))
 
     except Exception as e:
