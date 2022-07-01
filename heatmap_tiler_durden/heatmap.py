@@ -5,23 +5,12 @@ from tqdm import tqdm
 from scipy.ndimage.filters import gaussian_filter
 from PIL import Image
 import matplotlib.cm as cm
-import requests
 from io import BytesIO
 import os.path as path
 
-TILE_SIZE_PX = 256
-
-
-def get_tile_google(x, y, z):
-    # http://mt1.google.com/vt/lyrs=y&x=1325&y=3143&z=13
-    url = f'http://mt1.google.com/vt/x={x}&y={y}&z={z}'
-    response = requests.get(url)
-    img = Image.open(BytesIO(response.content))
-    return img
-
 
 def build_heatmap(coords_ti):
-    density = np.zeros((TILE_SIZE_PX, TILE_SIZE_PX), dtype=float)
+    density = np.zeros((256, 256), dtype=float)
     for x, y in tqdm(coords_ti.astype(int).transpose()):
         try:
             density[y, x] += 1

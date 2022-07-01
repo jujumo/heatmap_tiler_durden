@@ -3,9 +3,9 @@ import argparse
 import logging
 import os.path as path
 from typing import Optional
-from pyramid import create_heatmap_pyramid
-from coords import load_coords
-
+from pyramid import TilePyramid
+from coords import load_coords, map_size
+import numpy as np
 
 logger = logging.getLogger('tyler')
 
@@ -33,11 +33,9 @@ def main():
             '-q', '--silent', '--quiet', action='store_const', dest='verbose', const=logging.CRITICAL)
         parser.add_argument('-i', '--input', type=str, required=True,
                             help='input csv file')
-        parser.add_argument('-o', '--output', type=str,
+        parser.add_argument('-o', '--output', type=str, required=True,
                             help='output directory')
         parser.add_argument('-l', '--levels', type=int, default=8,
-                            help='max pyramid level [8]')
-        parser.add_argument('-e', '--empty', nargs='?', choices=['skip', 'keep'], default='skip', const='keep',
                             help='max pyramid level [8]')
 
         args = parser.parse_args()
@@ -50,12 +48,13 @@ def main():
         logger.debug('config:\n' + '\n'.join(f'\t\t{k}={v}' for k, v in vars(args).items()))
 
         coords_ll = load_coords(args.input)
-        create_heatmap_pyramid(
-            coords_ll=coords_ll,
-            output_dirpath=args.output,
+        data_pyramid = TilePyramid(
+            root_dirpath=path.join(args.output, 'data'),
             max_level=args.levels,
-            force_empty_tiles=(args.empty == 'keep')
-        )
+            dtype=np.uint8)
+
+        data_pyramid.increments(coords_ll)
+        data_pyramid.dump_to_images(image_rootpath=path.join(args.output, 'image'))
 
     except Exception as e:
         logger.critical(e)
