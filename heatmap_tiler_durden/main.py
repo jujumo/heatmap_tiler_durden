@@ -3,7 +3,7 @@ import argparse
 import logging
 import os.path as path
 from typing import Optional
-from pyramid import TilePyramid, TilePyramidLayer, add_spots, create_upper_layer
+from pyramid import TilePyramid, TilePyramidLayer, add_spots
 from coords import load_coords, map_size
 import numpy as np
 
@@ -57,8 +57,9 @@ def main():
         # add_spots(base_layer, coords_ll)
         logger.info(f'saving to disk.')
         base_layer.flush_to_disk()
-        upper_layer = create_upper_layer(base_layer)
-        upper_layer.flush_to_disk()
+        # upper_layer = base_layer.create_upper_layer()
+        pyramid = TilePyramid.create_from_base_layer(base_layer)
+        pyramid.flush_to_disk()
         # logger.info(f'exporting to images.')
 
         # data_pyramid.dump_to_images(image_rootpath=path.join(args.output, 'image'))

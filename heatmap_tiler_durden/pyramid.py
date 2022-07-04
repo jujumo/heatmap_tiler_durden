@@ -18,6 +18,10 @@ class Tile:
         self._filepath = filepath
         self.data = data
 
+    @property
+    def filepath(self):
+        return self._filepath
+
     @staticmethod
     def tile_filepath(root_dirpath: str, tile_coord: Tuple[int, int], level: int, file_ext: str = 'npy') -> str:
         filepath = path.join(root_dirpath, f'{level:02}', f'{tile_coord[1]:05}x{tile_coord[0]:05}.{file_ext}')
@@ -66,6 +70,14 @@ class TilePyramidLayer:
     def level(self):
         return self._level
 
+    @property
+    def root_dirpath(self):
+        return self._root_dirpath
+
+    @property
+    def dtype(self):
+        return self._dtype
+
     def get_tile(self, tile_coord):
         # if not in memory yet, load or assigns the tile
         if tile_coord in self._tiles_in_cache:
@@ -84,25 +96,57 @@ class TilePyramidLayer:
             tile.save_to_disk()
         self._tiles_in_cache.clear()
 
+    def create_upper_layer(self):
+        if self.level == 0:
+            raise IndexError('cant create upper level of level 0')
+        upper_level = self.level - 1
+        upper_layer = TilePyramidLayer(root_dirpath=self._root_dirpath, level=upper_level, dtype=self._dtype)
+        xx, yy = np.meshgrid(np.arange(nb_tiles(upper_level)), np.arange(nb_tiles(upper_level)))
+        upper_tile_coords = np.column_stack([xx.flatten(), yy.flatten()])
+        for upper_tile_coord in upper_tile_coords:
+            # retreive downscale tiles coords
+            tile_filepath = Tile.tile_filepath(root_dirpath=self._root_dirpath,
+                                               tile_coord=tuple(upper_tile_coord),
+                                               level=upper_level)
+            upper_tile = Tile.creates(filepath=tile_filepath, dtype=self._dtype)
+            for x_shift, y_shift in QUAD_TREE_SHIFTS:
+                base_tile_coord = tuple(upper_tile_coord * 2 + np.array([x_shift, y_shift]).tolist())
+                base_tile = self.get_tile(base_tile_coord)
+                if base_tile is None:
+                    continue
+                x_slice_dest = slice(x_shift * 128, x_shift * 128 + 128)
+                y_slice_dest = slice(y_shift * 128, y_shift * 128 + 128)
+                upper_tile_quarter = upper_tile.data[y_slice_dest, x_slice_dest]
+                upper_tile_quarter += base_tile.data[0::2, 0::2]
+                upper_tile_quarter += base_tile.data[0::2, 1::2]
+                upper_tile_quarter += base_tile.data[1::2, 0::2]
+                upper_tile_quarter += base_tile.data[1::2, 1::2]
+                if np.all(upper_tile_quarter == 0):
+                    continue
+                upper_layer._tiles_in_cache[tuple(upper_tile_coord)] = upper_tile
+
+        return upper_layer
+
 
 class TilePyramid:
     def __init__(
             self,
             root_dirpath: str,
             max_level: int,
-            dtype
+            dtype: type
     ):
         self._root_dirpath = root_dirpath
         self.max_level = max_level
-        self._pyramid_layers = None
-        #   {level: TilePyramidLayer(root_dirpath=root_dirpath, level=level, dtype=dtype)
-        #                        for level in range(max_level)}
+        self._pyramid_layers = {level: TilePyramidLayer(root_dirpath=root_dirpath, level=level, dtype=dtype)
+                                for level in range(max_level)}
 
-    def get_layer_base(self, level: int):
+    def get_layer(self, level: int):
         return self._pyramid_layers[level]
 
-    def update_upper_levels(self):
-        pass
+    def flush_to_disk(self):
+        for level, layer in self._pyramid_layers.items():
+            logger.debug(f'saving layer {level}')
+            layer.flush_to_disk()
 
     def dump_to_images(self, image_rootpath: str):
         self.flush_to_disk()
@@ -120,6 +164,22 @@ class TilePyramid:
                     continue
                 tile.dump_to_image(image_filepath)
 
+    @classmethod
+    def create_from_base_layer(cls, base_layer: TilePyramidLayer):
+        pyramid = cls(root_dirpath=base_layer.root_dirpath,
+                      max_level=base_layer.level,
+                      dtype=base_layer.dtype)
+
+        pyramid._pyramid_layers[base_layer.level] = base_layer
+        lower_layer = base_layer
+        for level in reversed(range(pyramid.max_level-1)):
+            logger.debug(f'creating layer level {level}')
+            upper_layer = lower_layer.create_upper_layer()
+            pyramid._pyramid_layers[level] = upper_layer
+            lower_layer = upper_layer
+            # self._pyramid_layers
+        return pyramid
+
 
 QUAD_TREE_SHIFTS = np.array([
     [0, 0],
@@ -127,39 +187,6 @@ QUAD_TREE_SHIFTS = np.array([
     [0, 1],
     [1, 1]
 ])
-
-
-def create_upper_layer(base_layer: TilePyramidLayer):
-    upper_level = base_layer.level - 1
-    dtype = base_layer._dtype
-    assert upper_level > 0
-    upper_layer = TilePyramidLayer(root_dirpath=base_layer._root_dirpath, level=upper_level, dtype=dtype)
-    xx, yy = np.meshgrid(np.arange(nb_tiles(upper_level)), np.arange(nb_tiles(upper_level)))
-    upper_tile_coords = np.column_stack([xx.flatten(), yy.flatten()])
-    for upper_tile_coord in upper_tile_coords:
-        # retreive downscale tiles coords
-        tile_filepath = Tile.tile_filepath(root_dirpath=base_layer._root_dirpath,
-                                           tile_coord=tuple(upper_tile_coord),
-                                           level=upper_level)
-        upper_tile = Tile.creates(filepath=tile_filepath, dtype=dtype)
-        for x_shift, y_shift in QUAD_TREE_SHIFTS:
-            base_tile_coord = tuple(upper_tile_coord * 2 + np.array([x_shift, y_shift]).tolist())
-            base_tile = base_layer.get_tile(base_tile_coord)
-            if base_tile is None:
-                continue
-            x_slice_dest= slice(x_shift * 128, x_shift * 128 + 128)
-            y_slice_dest = slice(y_shift*128, y_shift * 128 + 128)
-            upper_tile_quarter = upper_tile.data[y_slice_dest, x_slice_dest]
-            upper_tile_quarter += base_tile.data[0::2, 0::2]
-            upper_tile_quarter += base_tile.data[0::2, 1::2]
-            upper_tile_quarter += base_tile.data[1::2, 0::2]
-            upper_tile_quarter += base_tile.data[1::2, 1::2]
-            if np.all(upper_tile_quarter == 0):
-                # print(f'empty {upper_tile_coord}')
-                continue
-            upper_layer._tiles_in_cache[tuple(upper_tile_coord)] = upper_tile
-
-    return upper_layer
 
 
 def add_spots(layer: TilePyramidLayer, coords_ll: np.ndarray):
