@@ -54,7 +54,7 @@ def main():
         logger.info(f'adding tracks to heatmaps.')
 
         base_layer = TilePyramidLayer(root_dirpath=data_path , level=args.levels, dtype=np.uint8)
-        # add_spots(base_layer, coords_ll)
+        add_spots(base_layer, coords_ll)
         logger.info(f'saving to disk.')
         base_layer.flush_to_disk()
         # upper_layer = base_layer.create_upper_layer()

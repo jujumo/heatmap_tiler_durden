@@ -4,13 +4,20 @@ import os
 import os.path as path
 from PIL import Image
 import matplotlib.cm as cm
+import matplotlib.pyplot as plt
 import numpy as np
 from typing import Optional, Tuple, Set
 from coords import ll_to_raster, raster_to_tile, tile_set_rx, keep_in_tile_rx, TILE_SIZE_PX, nb_tiles
 from tqdm import tqdm
 
 logger = logging.getLogger('tyler')
-ext = 'jpg'
+
+QUAD_TREE_SHIFTS = np.array([
+    [0, 0],
+    [1, 0],
+    [0, 1],
+    [1, 1]
+])
 
 
 class Tile:
@@ -83,7 +90,7 @@ class TilePyramidLayer:
         if tile_coord in self._tiles_in_cache:
             return
         filepath = Tile.tile_filepath(
-            root_dirpath=self._root_dirpath, tile_coord=tile_coord, level=self._level, file_ext='npy')
+            root_dirpath=self._root_dirpath, tile_coord=tile_coord, level=self._level)
         tile = Tile.load_from_disk(filepath=filepath) or Tile.creates(filepath=filepath, dtype=self._dtype)
         if tile is None:
             return None
@@ -121,6 +128,7 @@ class TilePyramidLayer:
                 upper_tile_quarter += base_tile.data[0::2, 1::2]
                 upper_tile_quarter += base_tile.data[1::2, 0::2]
                 upper_tile_quarter += base_tile.data[1::2, 1::2]
+
                 if np.all(upper_tile_quarter == 0):
                     continue
                 upper_layer._tiles_in_cache[tuple(upper_tile_coord)] = upper_tile
@@ -155,7 +163,7 @@ class TilePyramid:
             tile_coords = np.column_stack([xx.flatten(), yy.flatten()])
             for tile_coord in tqdm(tile_coords):
                 tile_filepath = Tile.tile_filepath(
-                    root_dirpath=self._root_dirpath, tile_coord=tile_coord, level=level, file_ext='npy')
+                    root_dirpath=self._root_dirpath, tile_coord=tile_coord, level=level)
                 image_filepath = Tile.tile_filepath(
                     root_dirpath=image_rootpath, tile_coord=tile_coord, level=level, file_ext='png')
 
@@ -179,14 +187,6 @@ class TilePyramid:
             lower_layer = upper_layer
             # self._pyramid_layers
         return pyramid
-
-
-QUAD_TREE_SHIFTS = np.array([
-    [0, 0],
-    [1, 0],
-    [0, 1],
-    [1, 1]
-])
 
 
 def add_spots(layer: TilePyramidLayer, coords_ll: np.ndarray):
