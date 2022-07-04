@@ -63,6 +63,10 @@ class TilePyramidLayer:
         self._dtype = dtype
         self._tiles_in_cache = dict()  # (x, y) -> tile
 
+    @property
+    def level(self):
+        return self._level
+
     def get_tile(self, tile_coord):
         # if not in memory yet, load or assigns the tile
         if tile_coord in self._tiles_in_cache:
@@ -90,12 +94,16 @@ class TilePyramid:
             dtype
     ):
         self._root_dirpath = root_dirpath
-        self._pyramid_layers = {level: TilePyramidLayer(root_dirpath=root_dirpath, level=level, dtype=dtype)
-                                for level in range(max_level)}
+        self.max_level = max_level
+        self._pyramid_layers = None
+        #   {level: TilePyramidLayer(root_dirpath=root_dirpath, level=level, dtype=dtype)
+        #                        for level in range(max_level)}
 
-    def flush_to_disk(self):
-        for level, pyramid_layer in self._pyramid_layers.items():
-            pyramid_layer.flush_to_disk()
+    def get_layer_base(self, level: int):
+        return self._pyramid_layers[level]
+
+    def update_upper_levels(self):
+        pass
 
     def dump_to_images(self, image_rootpath: str):
         self.flush_to_disk()
@@ -113,14 +121,27 @@ class TilePyramid:
                     continue
                 tile.dump_to_image(image_filepath)
 
-    def increments(self, coords_ll: np.ndarray):
-        # load / create in memory
-        for level, layer in self._pyramid_layers.items():
-            coords_rx = ll_to_raster(coords_ll, level)
-            tiles_coords = tile_set_rx(coords_rx=coords_rx)
-            for tile_coord in tqdm(tiles_coords):
-                tile = layer.get_tile(tile_coord)
-                coords_rx_in_tile = keep_in_tile_rx(coords_rx, tile_coord)
-                coords_ti = raster_to_tile(coords_rx_in_tile, tile_coord).astype(int)
-                for x, y in coords_ti.transpose():
-                    tile.data[y, x] += 1
+
+def create_upper_layer(base_layer: TilePyramidLayer):
+    upper_level = base_layer.level - 1
+    xx, yy = np.meshgrid(np.arange(nb_tiles(upper_level)), np.arange(nb_tiles(upper_level)))
+    upper_tile_coords = np.column_stack([xx.flatten(), yy.flatten()])
+    for upper_tile_coord in upper_tile_coords:
+        np.vstack([
+            np.hstack([]),
+
+        ])
+    print(upper_tile_coords)
+
+
+
+def add_spots(layer: TilePyramidLayer, coords_ll: np.ndarray):
+    # load / create in memory
+    coords_rx = ll_to_raster(coords_ll, layer.level)
+    tiles_coords = tile_set_rx(coords_rx=coords_rx)
+    for tile_coord in tqdm(tiles_coords):
+        tile = layer.get_tile(tile_coord)
+        coords_rx_in_tile = keep_in_tile_rx(coords_rx, tile_coord)
+        coords_ti = raster_to_tile(coords_rx_in_tile, tile_coord).astype(int)
+        for x, y in coords_ti.transpose():
+            tile.data[y, x] += 1

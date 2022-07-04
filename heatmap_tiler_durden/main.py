@@ -3,7 +3,7 @@ import argparse
 import logging
 import os.path as path
 from typing import Optional
-from pyramid import TilePyramid
+from pyramid import TilePyramid, TilePyramidLayer, add_spots, create_upper_layer
 from coords import load_coords, map_size
 import numpy as np
 
@@ -14,7 +14,7 @@ class VerbosityParsor(argparse.Action):
     """ accept debug, info, ... or theirs corresponding integer value formatted as string."""
 
     def __call__(self, parser, namespace, values, option_string=None):
-        try:  # in case it represent an int, directly get it
+        try:  # in case it represents an int, directly get it
             values = int(values)
         except ValueError:  # else ask logging to sort it out
             assert isinstance(values, str)
@@ -45,18 +45,22 @@ def main():
         # logger stdout
         logger.setLevel(args.verbose)
         # config
+
         logger.debug('config:\n' + '\n'.join(f'\t\t{k}={v}' for k, v in vars(args).items()))
 
+        data_path = path.join(args.output, 'data')
         coords_ll = load_coords(args.input)
-        data_pyramid = TilePyramid(
-            root_dirpath=path.join(args.output, 'data'),
-            max_level=args.levels,
-            dtype=np.uint8)
 
         logger.info(f'adding tracks to heatmaps.')
-        data_pyramid.increments(coords_ll)
-        logger.info(f'exporting to images.')
-        data_pyramid.dump_to_images(image_rootpath=path.join(args.output, 'image'))
+
+        base_layer = TilePyramidLayer(root_dirpath=data_path , level=args.levels, dtype=np.uint8)
+        add_spots(base_layer, coords_ll)
+        logger.info(f'saving to disk.')
+        base_layer.flush_to_disk()
+        upper_layer = create_upper_layer(base_layer)
+        # logger.info(f'exporting to images.')
+
+        # data_pyramid.dump_to_images(image_rootpath=path.join(args.output, 'image'))
 
     except Exception as e:
         logger.critical(e)
