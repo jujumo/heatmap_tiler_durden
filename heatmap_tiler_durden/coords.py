@@ -2,7 +2,7 @@ import pandas as pd
 from pyproj import Transformer
 import matplotlib.pyplot as plt
 import numpy as np
-from typing import Tuple, Set
+from typing import Tuple, Set, List
 
 EARTH_RADIUS = 6378137.0
 EARTH_CIRC_M = 2 * np.pi * EARTH_RADIUS
@@ -46,7 +46,7 @@ def pixel_to_raster(coords_px, level):
     # Move the origin of pixel coordinates to top-left corner (like image)
     coords_rx = np.empty_like(coords_px)
     coords_rx[0] = coords_px[0]
-    coords_rx[1] = map_size(level) - coords_px[1]
+    coords_rx[1] = map_size_px(level) - coords_px[1]
     return coords_rx
 
 
@@ -83,11 +83,20 @@ def ll_to_tile(coords_ll, tile_coord: Tuple[int, int], level):
     return coords_ti
 
 
-def nb_tiles(level):
+def nb_tiles(level: int):
     return 2 ** level
 
 
-def map_size(level):
+def get_tile_coord_list(level: int) -> List[Tuple[int, int]]:
+    xx, yy = np.meshgrid(np.arange(nb_tiles(level)), np.arange(nb_tiles(level)))
+    tile_coords = np.column_stack([xx.flatten(), yy.flatten()])
+    tile_coords = [
+        (x, y) for x, y in tile_coords
+    ]
+    return tile_coords
+
+
+def map_size_px(level):
     return TILE_SIZE_PX << level
 
 
