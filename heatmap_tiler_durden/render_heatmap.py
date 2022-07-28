@@ -45,7 +45,7 @@ def main():
         data_base_layer = TileLayer(dirpath=args.input, level=base_level, dtype=int)
         logger.info(f'smoothing data.')
         proc_base_layer = TileLayer(dirpath=args.cache + f'/smooth/{base_level}', level=base_level, dtype=float)
-        smooth_layer(data_base_layer, proc_base_layer, sigma=3.)
+        # smooth_layer(data_base_layer, proc_base_layer, sigma=3.)
         render_layer_to_images(tile_layer=proc_base_layer,
                                layer_level=base_level,
                                image_filepath_template=image_filepath_template)

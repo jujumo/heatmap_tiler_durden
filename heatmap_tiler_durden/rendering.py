@@ -64,7 +64,7 @@ def downsample_image_layer(
     upper_tile_coords = get_tile_coord_list(upper_layer_level)
     for upper_tile_coord in tqdm(upper_tile_coords):
         lower_tile_coords = get_tiles_lower(upper_tile_coord=upper_tile_coord)
-        upper_image = Image.new('RGBA', (TILE_SIZE_PX * 2, TILE_SIZE_PX * 2))
+        upper_image = Image.new('RGBA', (TILE_SIZE_PX * 2, TILE_SIZE_PX * 2), (255, 255, 255, 127))
         some_modifications = False
         for row, lower_tile_coord_row in enumerate(lower_tile_coords):
             for col, lower_tile_coord in enumerate(lower_tile_coord_row):
